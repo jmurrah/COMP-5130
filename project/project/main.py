@@ -2,6 +2,7 @@ import pandas as pd
 import argparse
 import project.algorithms as algorithms
 
+
 def convert_to_dataframe(file_path: str) -> pd.DataFrame:
     with open(file_path, "r") as file:
         raw_data = file.readlines()
@@ -23,6 +24,5 @@ def main():
     arxiv_small_dataset = convert_to_dataframe("./project/datasets/CA-GrQc.txt")
     dblp_large_dataset = convert_to_dataframe("./project/datasets/com-dblp.ungraph.txt")
 
-    
     if algorithm == "k-means":
-        algorithms.k_means.main()
+        algorithms.k_means.k_means(10, arxiv_small_dataset)
