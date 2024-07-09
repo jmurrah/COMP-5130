@@ -13,17 +13,15 @@ from sklearn.decomposition import PCA
 def plot_clusters(keyed_vectors: KeyedVectors, centroids: np.ndarray, clusters: list[list[int]], iteration: int):
     plt.figure(figsize=(10, 7))  # Set the figure size
     colors = ['r', 'g', 'b', 'y', 'c', 'm']  # Define colors for different clusters
+
+    pca = PCA(n_components=2)
     
-    # Plot each cluster
     for i, cluster in enumerate(clusters):
         points = np.array([keyed_vectors[key] for key in cluster])
-        plt.scatter(points[:, 0], points[:, 1], s=30, c=colors[i % len(colors)], label=f'Cluster {i}')
+        points_2d = pca.fit_transform(points)
+        plt.scatter(points_2d[:, 0], points_2d[:, 1], s=30, c=colors[i % len(colors)], label=f'Cluster {i}')
     
-    # Reduce centroids to 2D using PCA
-    pca = PCA(n_components=2)
     centroids_2d = pca.fit_transform(centroids)
-    
-    # Plot reduced centroids
     for centroid in centroids_2d:
         plt.scatter(centroid[0], centroid[1], s=100, c='black', marker='x', linewidths=3)
     
@@ -127,7 +125,7 @@ def k_means(k: int, raw_data: pd.DataFrame):
 
         if is_converged(k, old_centroids, centroids):
             break
-
+        
         plot_clusters(keyed_vectors, centroids, clusters, iteration)
 
         cluster_labels = get_cluster_labels(keyed_vectors, clusters)
