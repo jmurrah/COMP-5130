@@ -9,21 +9,31 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
 
-
-def plot_clusters(keyed_vectors: KeyedVectors, centroids: np.ndarray, clusters: list[list[int]], iteration: int):
-    plt.figure(figsize=(10, 7))  # Set the figure size
-    colors = ['r', 'g', 'b', 'y', 'c', 'm']  # Define colors for different clusters
-
-    pca = PCA(n_components=2)
+def plot_clusters(k: int, keyed_vectors: KeyedVectors, centroids: np.ndarray, clusters: list[list[int]], iteration: int):
+    plt.figure(figsize=(10, 7))
     
+    # Generate a list of colors from the HSV colormap
+    colors = plt.cm.hsv(np.linspace(0, 1, k))
+
+    # Collect all vectors for PCA
+    all_vectors = np.array([keyed_vectors[key] for cluster in clusters for key in cluster])
+    
+    # Fit PCA on all vectors
+    pca = PCA(n_components=2)
+    pca.fit(all_vectors)
+    
+    # Plot each cluster
     for i, cluster in enumerate(clusters):
         points = np.array([keyed_vectors[key] for key in cluster])
-        points_2d = pca.fit_transform(points)
-        plt.scatter(points_2d[:, 0], points_2d[:, 1], s=30, c=colors[i % len(colors)], label=f'Cluster {i}')
+        points_2d = pca.transform(points)  # Use transform, not fit_transform
+        # Use the 'color' keyword argument to specify the color for each cluster
+        plt.scatter(points_2d[:, 0], points_2d[:, 1], s=30, color=colors[i % k], label=f'Cluster {i}')
     
-    centroids_2d = pca.fit_transform(centroids)
+    # Transform centroids
+    centroids_2d = pca.transform(centroids)
     for centroid in centroids_2d:
-        plt.scatter(centroid[0], centroid[1], s=100, c='black', marker='x', linewidths=3)
+        # Use the 'color' keyword argument for centroids as well
+        plt.scatter(centroid[0], centroid[1], s=100, color='black', marker='x', linewidths=3)
     
     plt.title(f'Clusters and Centroids ITERATION #{iteration}')
     plt.xlabel('Dimension 1')
@@ -97,10 +107,10 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     )
 
     print("Initializing node2vec model...")
-    node2vec = Node2Vec(G, dimensions=64, walk_length=40, num_walks=20, workers=4)
+    node2vec = Node2Vec(G, dimensions=64, walk_length=60, num_walks=40, workers=32)
 
     print("Training node2vec model...")
-    model = node2vec.fit(window=10, min_count=1, batch_words=4)
+    model = node2vec.fit(window=10, min_count=1, batch_words=1000)
 
     print("Generating embeddings...")
     keyed_vectors = model.wv
@@ -116,7 +126,7 @@ def k_means(k: int, raw_data: pd.DataFrame):
     centroids = keyed_vectors[indices]
     
     iteration = 1
-    while iteration <= 100:
+    while iteration <= 1000:
         clusters = create_clusters(k, keyed_vectors, centroids)
         # plot(data, clusters, centroids)
 
@@ -126,8 +136,9 @@ def k_means(k: int, raw_data: pd.DataFrame):
         if is_converged(k, old_centroids, centroids):
             break
         
-        plot_clusters(keyed_vectors, centroids, clusters, iteration)
 
         cluster_labels = get_cluster_labels(keyed_vectors, clusters)
-        print(f"Cluster labels: {cluster_labels}")
+        print(f"Cluster labels #{iteration}: {cluster_labels}")
         iteration += 1
+    
+    plot_clusters(k, keyed_vectors, centroids, clusters, iteration)

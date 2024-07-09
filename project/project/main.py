@@ -26,6 +26,6 @@ def main():
     dblp_large_dataset = convert_to_dataframe("./project/datasets/com-dblp.ungraph.txt")
 
     if algorithm == "k-means":
-        algorithms.k_means.k_means(5, test_data)
-        # algorithms.k_means.k_means(10, arxiv_small_dataset)
+        # algorithms.k_means.k_means(10, test_data)
+        algorithms.k_means.k_means(20, arxiv_small_dataset)
         # algorithms.k_means.k_means(10, dblp_large_dataset)
