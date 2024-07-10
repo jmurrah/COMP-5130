@@ -59,5 +59,5 @@ poetry install
 
 9) Run k-means algorithm
 ```
-poetry run python3 k-means
+poetry run python3 k_means.py
 ```
