@@ -65,8 +65,8 @@ def is_converged(
         for i in range(k)
     ]
     sum_distances = sum(distances)
-    print(f"Distance of cluster movement: {sum_distances}")
-    return sum_distances == 0
+    print(f"Sum of cluster movement: {sum_distances}\n")
+    return sum_distances <= 0.001
 
 
 def get_centroids(
@@ -104,12 +104,12 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     )
 
     print("Initializing node2vec model...")
-    node2vec = Node2Vec(G, dimensions=64, walk_length=100, num_walks=80, workers=32)
+    node2vec = Node2Vec(G, dimensions=64, walk_length=100, num_walks=100, workers=32)
 
     print("Training node2vec model...")
     model = node2vec.fit(window=5, min_count=1, batch_words=10000)
 
-    print("Generating embeddings...")
+    print("Generating vector embeddings...")
     keyed_vectors = model.wv
 
     return keyed_vectors
@@ -124,6 +124,7 @@ def k_means(k: int, raw_data: pd.DataFrame):
 
     iteration = 1
     while iteration <= 1000:
+        print(f"Iteration #{iteration}")
         clusters = create_clusters(k, keyed_vectors, current_centroids)
 
         old_centroids = current_centroids
@@ -132,7 +133,7 @@ def k_means(k: int, raw_data: pd.DataFrame):
         if is_converged(k, old_centroids, current_centroids):
             break
 
-        print(f"Iteration #{iteration}")
+        # plot_clusters(k, keyed_vectors, current_centroids, clusters, iteration)
         iteration += 1
 
     plot_clusters(k, keyed_vectors, current_centroids, clusters, iteration)
