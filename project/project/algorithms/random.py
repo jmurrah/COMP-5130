@@ -18,7 +18,7 @@ def plot_clusters(
     iteration: int,
 ):
     plt.figure(figsize=(10, 7))
-    colors = plt.cm.hsv(np.linspace(0, 1, k + 1))
+    colors = plt.cm.hsv(np.linspace(0, 1, k))
 
     all_vectors = np.array(
         [keyed_vectors[key] for cluster in clusters for key in cluster]
@@ -41,7 +41,7 @@ def plot_clusters(
     centroids_2d = pca.transform(centroids)
     for centroid in centroids_2d:
         plt.scatter(
-            centroid[0], centroid[1], s=100, color="black", marker="x", linewidths=3
+            centroid[0], centroid[1], s=100, color="black", marker="x", linewidths=2
         )
 
     plt.title(f"Clusters and Centroids ITERATION #{iteration}")
@@ -52,20 +52,15 @@ def plot_clusters(
 
 
 def calculate_euclidean_distance(vec1: np.ndarray, vec2: np.ndarray) -> float:
-    squared_diffs = [(vec1[i] - vec2[i]) ** 2 for i in range(len(vec1))]
-    distance = np.sqrt(sum(squared_diffs))
-    return distance
+    return np.sqrt(sum([(vec1[i] - vec2[i]) ** 2 for i in range(len(vec1))]))
 
 
-def is_converged(
-    k: int, old_centroids: np.ndarray, current_centroids: np.ndarray
-) -> bool:
+def is_converged(k: int, centroids1: np.ndarray, centroids2: np.ndarray) -> bool:
     distances = [
-        calculate_euclidean_distance(old_centroids[i], current_centroids[i])
-        for i in range(k)
+        calculate_euclidean_distance(centroids1[i], centroids2[i]) for i in range(k)
     ]
     sum_distances = sum(distances)
-    print(f"Distance of cluster movement: {sum_distances}")
+    print(sum_distances)
     return sum_distances == 0
 
 
@@ -104,10 +99,10 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     )
 
     print("Initializing node2vec model...")
-    node2vec = Node2Vec(G, dimensions=64, walk_length=100, num_walks=80, workers=32)
+    node2vec = Node2Vec(G, dimensions=64, walk_length=60, num_walks=40, workers=32)
 
     print("Training node2vec model...")
-    model = node2vec.fit(window=5, min_count=1, batch_words=10000)
+    model = node2vec.fit(window=10, min_count=1, batch_words=1000)
 
     print("Generating embeddings...")
     keyed_vectors = model.wv
@@ -115,24 +110,36 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     return keyed_vectors
 
 
+def get_cluster_labels(
+    keyed_vectors: np.ndarray, clusters: list[list[int]]
+) -> list[int]:
+    labels = np.zeros(len(keyed_vectors))
+
+    for i, cluster in enumerate(clusters):
+        for j in cluster:
+            labels[j] = i
+
+    return labels
+
+
 def k_means(k: int, raw_data: pd.DataFrame):
     print("Running K-means algorithm")
-    keyed_vectors = convert_nodes_to_vectors(raw_data)
 
-    indices = np.random.choice(len(keyed_vectors), k, replace=False)
-    current_centroids = keyed_vectors[indices]
+    keyed_vectors = convert_nodes_to_vectors(raw_data)
+    indicies = np.random.choice(len(keyed_vectors), k, replace=False)
+    centroids = keyed_vectors[indicies]
 
     iteration = 1
     while iteration <= 1000:
-        clusters = create_clusters(k, keyed_vectors, current_centroids)
+        clusters = create_clusters(k, keyed_vectors, centroids)
 
-        old_centroids = current_centroids
-        current_centroids = get_centroids(k, keyed_vectors, clusters)
+        old_centroids = centroids
+        new_centroids = get_centroids(k, keyed_vectors, clusters)
 
-        if is_converged(k, old_centroids, current_centroids):
+        if is_converged(k, old_centroids, new_centroids):
             break
 
-        print(f"Iteration #{iteration}")
+        print(f"Cluster labels #{iteration}")
         iteration += 1
 
-    plot_clusters(k, keyed_vectors, current_centroids, clusters, iteration)
+    plot_clusters(k, keyed_vectors, centroids, clusters, iteration)
