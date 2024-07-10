@@ -157,6 +157,6 @@ if __name__ == "__main__":
     arxiv_small_dataset = convert_to_dataframe("./datasets/CA-GrQc.txt")
     dblp_large_dataset = convert_to_dataframe("./datasets/com-dblp.ungraph.txt")
 
-    # algorithms.k_means.k_means(5, test_data)
-    k_means(3, arxiv_small_dataset)
-    # algorithms.k_means.k_means(10, dblp_large_dataset)
+    k_means(5, test_data)
+    # k_means(3, arxiv_small_dataset)
+    # k_means(10, dblp_large_dataset)
