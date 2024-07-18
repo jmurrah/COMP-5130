@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+from sklearn.metrics import silhouette_score
 
 
 def convert_to_dataframe(file_path: str) -> pd.DataFrame:
@@ -128,6 +129,17 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     return keyed_vectors
 
 
+def get_cluster_labels(clusters, num_samples):
+    labels = np.zeros(num_samples, dtype=int)
+
+    for cluster_number, cluster_indices in enumerate(clusters):
+        for index in cluster_indices:
+            labels[index] = cluster_number
+
+    return labels
+
+
+
 def k_means(k: int, raw_data: pd.DataFrame):
     print("Running K-means algorithm")
     keyed_vectors = convert_nodes_to_vectors(raw_data)
@@ -148,6 +160,9 @@ def k_means(k: int, raw_data: pd.DataFrame):
 
         # plot_clusters(k, keyed_vectors, current_centroids, clusters, iteration)
         iteration += 1
+
+    silhouette_avg = silhouette_score(keyed_vectors.vectors, get_cluster_labels(clusters, len(keyed_vectors)))
+    print(f"Silhouette Score: {silhouette_avg}")
 
     plot_clusters(k, keyed_vectors, current_centroids, clusters, iteration)
 
