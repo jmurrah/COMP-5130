@@ -3,6 +3,8 @@ import pandas as pd
 import networkx as nx
 from node2vec import Node2Vec
 from gensim.models import KeyedVectors
+import time
+
 import matplotlib
 
 matplotlib.use("TkAgg")
@@ -78,10 +80,12 @@ def plot_clusters(
     plt.show()
 
 
+def calculate_squared_diffs(vec1: np.ndarray, vec2: np.ndarray) -> float:
+    return [(vec1[i] - vec2[i]) ** 2 for i in range(len(vec1))]
+
+
 def calculate_euclidean_distance(vec1: np.ndarray, vec2: np.ndarray) -> float:
-    squared_diffs = [(vec1[i] - vec2[i]) ** 2 for i in range(len(vec1))]
-    distance = np.sqrt(sum(squared_diffs))
-    return distance
+    return np.sqrt(sum(calculate_squared_diffs(vec1, vec2)))
 
 
 def is_converged(
@@ -92,7 +96,7 @@ def is_converged(
         for i in range(k)
     ]
     sum_distances = sum(distances)
-    print(f"Sum of cluster movement: {sum_distances}\n")
+    # print(f"Sum of cluster movement: {sum_distances}\n")
     return sum_distances <= 0.001
 
 
@@ -155,6 +159,7 @@ def get_cluster_labels(clusters, num_samples):
 
 def k_means(k: int, raw_data: pd.DataFrame):
     print("Running K-means algorithm")
+    start_time = time.time()
     keyed_vectors = convert_nodes_to_vectors(raw_data)
 
     indices = np.random.choice(len(keyed_vectors), k, replace=False)
@@ -162,7 +167,7 @@ def k_means(k: int, raw_data: pd.DataFrame):
 
     iteration = 1
     while iteration <= 1000:
-        print(f"Iteration #{iteration}")
+        # print(f"Iteration #{iteration}")
         clusters = create_clusters(k, keyed_vectors, current_centroids)
 
         old_centroids = current_centroids
@@ -174,10 +179,56 @@ def k_means(k: int, raw_data: pd.DataFrame):
         # plot_clusters(k, keyed_vectors, current_centroids, clusters, iteration)
         iteration += 1
 
-    silhouette_avg = silhouette_score(keyed_vectors.vectors, get_cluster_labels(clusters, len(keyed_vectors)))
-    print(f"Silhouette Score: {silhouette_avg}")
-
+    end_time = time.time()
+    print(f"Time taken: {end_time - start_time} seconds")
     plot_clusters(k, keyed_vectors, current_centroids, clusters, iteration)
+
+    return keyed_vectors, clusters, current_centroids
+
+
+def calculate_wcss(k, keyed_vectors, clusters, centroids):
+    wcss = 0
+
+    for cluster_id in range(k):
+        cluster_indices = clusters[cluster_id]
+        cluster_vectors = keyed_vectors[cluster_indices]
+
+        for vector in cluster_vectors:
+            squared_distance = calculate_euclidean_distance(vector, centroids[cluster_id]) ** 2
+            wcss += squared_distance
+
+    return wcss
+
+
+def plot_optimal_k(k_range, values, method):
+    plt.plot(k_range, values, marker='o')
+    plt.xlabel('Number of clusters (k)')
+    plt.ylabel(method)
+    plt.title('Elbow Method for Optimal k')
+    plt.xticks(range(min(k_range), max(k_range)+1))
+    plt.show()
+
+
+def find_optimal_k(data, k_range):
+    wcss_values, silh_values = [], []
+
+    for k in k_range:
+        print(f"k = {k}")
+        keyed_vectors, clusters, current_centroids = k_means(k, data)
+
+        wcss = calculate_wcss(k, keyed_vectors, clusters, current_centroids)
+        silhouette_avg = silhouette_score(keyed_vectors.vectors, get_cluster_labels(clusters, len(keyed_vectors)))
+        print(f"WCSS = {wcss}")
+        print(f"Silhouette Score: {silhouette_avg}")
+
+        wcss_values.append(wcss)
+        silh_values.append(silhouette_avg)
+        # k_means(3, arxiv_small_dataset)
+        # k_means(10, dblp_large_dataset)
+
+    plot_optimal_k(k_range, wcss_values, "WCSS")
+    plot_optimal_k(k_range, silh_values, "Silhouette Score")
+
 
 
 if __name__ == "__main__":
@@ -185,6 +236,10 @@ if __name__ == "__main__":
     arxiv_small_dataset = convert_to_dataframe("./datasets/CA-GrQc.txt")
     dblp_large_dataset = convert_to_dataframe("./datasets/com-dblp.ungraph.txt")
 
-    k_means(5, test_data)
-    # k_means(3, arxiv_small_dataset)
-    # k_means(10, dblp_large_dataset)
+    
+    if input("Find optimal k?\nInput (y/n): ") in ["yes", "y"]:
+        find_optimal_k(arxiv_small_dataset, range(3, 34))
+    else:
+        # k_means(34, arxiv_small_dataset)
+        k_means(3, test_data)
+        # k_means(10, dblp_large_dataset)
