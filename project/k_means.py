@@ -4,26 +4,9 @@ import networkx as nx
 from node2vec import Node2Vec
 from gensim.models import KeyedVectors
 import time
-
-import matplotlib
-
-matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
-
-
-def convert_to_dataframe(file_path: str) -> pd.DataFrame:
-    with open(file_path, "r") as file:
-        raw_data = file.readlines()
-
-    data = {"from-node-id": [], "to-node-id": []}
-
-    for row in raw_data[4:]:
-        data["from-node-id"].append(row.split("\t")[0].strip())
-        data["to-node-id"].append(row.split("\t")[1].strip())
-
-    return pd.DataFrame(data)
 
 
 def convert_to_dataframe(file_path: str) -> pd.DataFrame:
@@ -52,7 +35,6 @@ def plot_clusters(
     all_vectors = np.array(
         [keyed_vectors[key] for cluster in clusters for key in cluster]
     )
-
     pca = PCA(n_components=2)
     pca.fit(all_vectors)
 
@@ -96,7 +78,7 @@ def is_converged(
         for i in range(k)
     ]
     sum_distances = sum(distances)
-    # print(f"Sum of cluster movement: {sum_distances}\n")
+    print(f"Sum of cluster movement: {sum_distances}\n")
     return sum_distances <= 0.001
 
 
@@ -135,7 +117,7 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     )
 
     print("Initializing node2vec model...")
-    node2vec = Node2Vec(G, dimensions=64, walk_length=100, num_walks=100, workers=32)
+    node2vec = Node2Vec(G, dimensions=128, walk_length=200, num_walks=50, workers=32)
 
     print("Training node2vec model...")
     model = node2vec.fit(window=5, min_count=1, batch_words=10000)
@@ -146,7 +128,7 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     return keyed_vectors
 
 
-def get_cluster_labels(clusters, num_samples):
+def get_cluster_labels(clusters, num_samples) -> np.ndarray:
     labels = np.zeros(num_samples, dtype=int)
 
     for cluster_number, cluster_indices in enumerate(clusters):
@@ -156,8 +138,9 @@ def get_cluster_labels(clusters, num_samples):
     return labels
 
 
-
-def k_means(k: int, raw_data: pd.DataFrame):
+def k_means(
+    k: int, raw_data: pd.DataFrame
+) -> tuple[KeyedVectors, list[list[int]], np.ndarray]:
     print("Running K-means algorithm")
     start_time = time.time()
     keyed_vectors = convert_nodes_to_vectors(raw_data)
@@ -167,7 +150,7 @@ def k_means(k: int, raw_data: pd.DataFrame):
 
     iteration = 1
     while iteration <= 1000:
-        # print(f"Iteration #{iteration}")
+        print(f"Iteration #{iteration}")
         clusters = create_clusters(k, keyed_vectors, current_centroids)
 
         old_centroids = current_centroids
@@ -176,7 +159,6 @@ def k_means(k: int, raw_data: pd.DataFrame):
         if is_converged(k, old_centroids, current_centroids):
             break
 
-        # plot_clusters(k, keyed_vectors, current_centroids, clusters, iteration)
         iteration += 1
 
     end_time = time.time()
@@ -186,7 +168,12 @@ def k_means(k: int, raw_data: pd.DataFrame):
     return keyed_vectors, clusters, current_centroids
 
 
-def calculate_wcss(k, keyed_vectors, clusters, centroids):
+def calculate_wcss(
+    k: int,
+    keyed_vectors: KeyedVectors,
+    clusters: list[list[int]],
+    centroids: np.ndarray,
+) -> float:
     wcss = 0
 
     for cluster_id in range(k):
@@ -194,22 +181,24 @@ def calculate_wcss(k, keyed_vectors, clusters, centroids):
         cluster_vectors = keyed_vectors[cluster_indices]
 
         for vector in cluster_vectors:
-            squared_distance = calculate_euclidean_distance(vector, centroids[cluster_id]) ** 2
+            squared_distance = (
+                calculate_euclidean_distance(vector, centroids[cluster_id]) ** 2
+            )
             wcss += squared_distance
 
     return wcss
 
 
-def plot_optimal_k(k_range, values, method):
-    plt.plot(k_range, values, marker='o')
-    plt.xlabel('Number of clusters (k)')
+def plot_optimal_k(k_range: range, values: list[list[int]], method: str):
+    plt.plot(k_range, values, marker="o")
+    plt.xlabel("Number of clusters (k)")
     plt.ylabel(method)
-    plt.title('Elbow Method for Optimal k')
-    plt.xticks(range(min(k_range), max(k_range)+1))
+    plt.title("Elbow Method for Optimal k")
+    plt.xticks(range(min(k_range), max(k_range) + 1))
     plt.show()
 
 
-def find_optimal_k(data, k_range):
+def find_optimal_k(data: pd.DataFrame, k_range: range):
     wcss_values, silh_values = [], []
 
     for k in k_range:
@@ -217,7 +206,9 @@ def find_optimal_k(data, k_range):
         keyed_vectors, clusters, current_centroids = k_means(k, data)
 
         wcss = calculate_wcss(k, keyed_vectors, clusters, current_centroids)
-        silhouette_avg = silhouette_score(keyed_vectors.vectors, get_cluster_labels(clusters, len(keyed_vectors)))
+        silhouette_avg = silhouette_score(
+            keyed_vectors.vectors, get_cluster_labels(clusters, len(keyed_vectors))
+        )
         print(f"WCSS = {wcss}")
         print(f"Silhouette Score: {silhouette_avg}")
 
@@ -230,16 +221,14 @@ def find_optimal_k(data, k_range):
     plot_optimal_k(k_range, silh_values, "Silhouette Score")
 
 
-
 if __name__ == "__main__":
     test_data = convert_to_dataframe("./datasets/test_data.txt")
     arxiv_small_dataset = convert_to_dataframe("./datasets/CA-GrQc.txt")
     dblp_large_dataset = convert_to_dataframe("./datasets/com-dblp.ungraph.txt")
 
-    
     if input("Find optimal k?\nInput (y/n): ") in ["yes", "y"]:
-        find_optimal_k(arxiv_small_dataset, range(3, 34))
+        find_optimal_k(arxiv_small_dataset, range(3, 10))
     else:
-        # k_means(34, arxiv_small_dataset)
-        k_means(3, test_data)
+        k_means(5, arxiv_small_dataset)
+        # k_means(5, test_data)
         # k_means(10, dblp_large_dataset)
