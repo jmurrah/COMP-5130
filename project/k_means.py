@@ -82,7 +82,7 @@ def is_converged(
     return sum_distances <= 0.001
 
 
-def get_centroids(
+def calculate_new_centroids(
     k: int, keyed_vectors: KeyedVectors, clusters: list[list[int]]
 ) -> np.ndarray:
     vector_dimensions = keyed_vectors.vector_size
@@ -117,7 +117,7 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     )
 
     print("Initializing node2vec model...")
-    node2vec = Node2Vec(G, dimensions=128, walk_length=200, num_walks=50, workers=32)
+    node2vec = Node2Vec(G, dimensions=128, walk_length=50, num_walks=50, workers=16)
 
     print("Training node2vec model...")
     model = node2vec.fit(window=5, min_count=1, batch_words=10000)
@@ -154,7 +154,7 @@ def k_means(
         clusters = create_clusters(k, keyed_vectors, current_centroids)
 
         old_centroids = current_centroids
-        current_centroids = get_centroids(k, keyed_vectors, clusters)
+        current_centroids = calculate_new_centroids(k, keyed_vectors, clusters)
 
         if is_converged(k, old_centroids, current_centroids):
             break
@@ -165,7 +165,14 @@ def k_means(
     print(f"Time taken: {end_time - start_time} seconds")
     plot_clusters(k, keyed_vectors, current_centroids, clusters, iteration)
 
-    return keyed_vectors, clusters, current_centroids
+    wcss = calculate_wcss(k, keyed_vectors, clusters, current_centroids)
+    silhouette_avg = silhouette_score(
+        keyed_vectors.vectors, get_cluster_labels(clusters, len(keyed_vectors))
+    )
+    print(f"WCSS = {wcss}")
+    print(f"Silhouette Score: {silhouette_avg}")
+
+    return wcss, silhouette_avg
 
 
 def calculate_wcss(
@@ -193,7 +200,7 @@ def plot_optimal_k(k_range: range, values: list[list[int]], method: str):
     plt.plot(k_range, values, marker="o")
     plt.xlabel("Number of clusters (k)")
     plt.ylabel(method)
-    plt.title("Elbow Method for Optimal k")
+    plt.title("Find Optimal k")
     plt.xticks(range(min(k_range), max(k_range) + 1))
     plt.show()
 
@@ -203,19 +210,9 @@ def find_optimal_k(data: pd.DataFrame, k_range: range):
 
     for k in k_range:
         print(f"k = {k}")
-        keyed_vectors, clusters, current_centroids = k_means(k, data)
-
-        wcss = calculate_wcss(k, keyed_vectors, clusters, current_centroids)
-        silhouette_avg = silhouette_score(
-            keyed_vectors.vectors, get_cluster_labels(clusters, len(keyed_vectors))
-        )
-        print(f"WCSS = {wcss}")
-        print(f"Silhouette Score: {silhouette_avg}")
-
+        wcss, silhouette_avg = k_means(k, data)
         wcss_values.append(wcss)
         silh_values.append(silhouette_avg)
-        # k_means(3, arxiv_small_dataset)
-        # k_means(10, dblp_large_dataset)
 
     plot_optimal_k(k_range, wcss_values, "WCSS")
     plot_optimal_k(k_range, silh_values, "Silhouette Score")
@@ -227,8 +224,9 @@ if __name__ == "__main__":
     dblp_large_dataset = convert_to_dataframe("./datasets/com-dblp.ungraph.txt")
 
     if input("Find optimal k?\nInput (y/n): ") in ["yes", "y"]:
-        find_optimal_k(arxiv_small_dataset, range(3, 10))
+        find_optimal_k(arxiv_small_dataset, range(3, 15))
     else:
-        k_means(5, arxiv_small_dataset)
+        # k_means(5, arxiv_small_dataset)
         # k_means(5, test_data)
-        # k_means(10, dblp_large_dataset)
+        # dblp_large_dataset
+        k_means(15, dblp_large_dataset)
