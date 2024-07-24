@@ -4,14 +4,14 @@
 sudo apt update
 ```
 
-2) Install pipx
+2) Install pipx: https://pipx.pypa.io/stable/
 ```
 sudo apt install pipx
 
 pipx --version
 ```
 
-3) Download poetry
+3) Download poetry: https://python-poetry.org/docs/#installing-with-pipx
 ```
 pipx install poetry==1.8.2
 
@@ -23,7 +23,7 @@ poetry --version
 python --version
 ```
 
-5) Download pyenv
+5) Download pyenv: https://github.com/pyenv/pyenv?tab=readme-ov-file#installation
 ```
 sudo apt install -y make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
 
