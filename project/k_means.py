@@ -104,7 +104,7 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     )
 
     print("Initializing node2vec model...")
-    node2vec = Node2Vec(G, dimensions=64, walk_length=50, num_walks=50, workers=32)
+    node2vec = Node2Vec(G, dimensions=64, walk_length=50, num_walks=50, workers=16)
 
     print("Training node2vec model...")
     model = node2vec.fit(window=5, min_count=1, batch_words=10000)
@@ -116,7 +116,6 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
 
 
 def convert_vectors_to_2d(keyed_vectors: KeyedVectors):
-    breakpoint()
     vectors_array = np.array([v for v in keyed_vectors.vectors])
     pca = PCA(n_components=2)
     return pca.fit_transform(vectors_array)
@@ -138,7 +137,7 @@ def k_means(
     print("Running K-means algorithm")
     start_time = time.time()
     points = convert_vectors_to_2d(convert_nodes_to_vectors(raw_data))
-    breakpoint()
+
     indices = np.random.choice(len(points), k, replace=False)
     current_centroids = points[indices]
 
@@ -213,10 +212,5 @@ if __name__ == "__main__":
     arxiv_small_dataset = convert_to_dataframe("./datasets/CA-GrQc.txt")
     dblp_large_dataset = convert_to_dataframe("./datasets/com-dblp.ungraph.txt")
 
-    if input("Find optimal k?\nInput (y/n): ") in ["yes", "y"]:
-        find_optimal_k(arxiv_small_dataset, range(3, 15))
-    else:
-        # k_means(5, arxiv_small_dataset)
-        k_means(3, arxiv_small_dataset)
-        # dblp_large_dataset
-        # k_means(12, dblp_large_dataset)
+    #find_optimal_k(arxiv_small_dataset, range(3, 15))
+    k_means(7, arxiv_small_dataset)
