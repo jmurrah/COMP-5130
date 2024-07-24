@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "project"
+name = "COMP5130 K-Means Project"
 version = "0.1.0"
 description = ""
 authors = ["jmurrah <jacobhmurrah@gmail.com>"]
@@ -14,11 +14,7 @@ scipy="<1.13"
 networkx="<3.0"
 node2vec = "^0.4.6"
 scikit-learn = "^1.5.1"
-pyqt6 = "^6.7.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-k-means = "project.main:main"
