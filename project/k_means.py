@@ -211,5 +211,5 @@ if __name__ == "__main__":
     arxiv_small_dataset = convert_to_dataframe("./datasets/CA-GrQc.txt")
     dblp_large_dataset = convert_to_dataframe("./datasets/com-dblp.ungraph.txt")
 
-    #find_optimal_k(arxiv_small_dataset, range(3, 15))
+    # find_optimal_k(arxiv_small_dataset, range(3, 15))
     k_means(7, arxiv_small_dataset)
