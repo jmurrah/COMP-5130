@@ -208,7 +208,6 @@ def find_optimal_k(data: pd.DataFrame, k_range: range):
 
 
 if __name__ == "__main__":
-    test_data = convert_to_dataframe("./datasets/test_data.txt")
     arxiv_small_dataset = convert_to_dataframe("./datasets/CA-GrQc.txt")
     dblp_large_dataset = convert_to_dataframe("./datasets/com-dblp.ungraph.txt")
 
