@@ -24,7 +24,7 @@ def convert_to_dataframe(file_path: str) -> pd.DataFrame:
 
 def plot_clusters(
     k: int,
-    keyed_vectors: KeyedVectors,
+    points: np.ndarray,
     centroids: np.ndarray,
     clusters: list[list[int]],
     iteration: int,
@@ -32,25 +32,17 @@ def plot_clusters(
     plt.figure(figsize=(10, 7))
     colors = plt.cm.hsv(np.linspace(0, 1, k + 1))
 
-    all_vectors = np.array(
-        [keyed_vectors[key] for cluster in clusters for key in cluster]
-    )
-    pca = PCA(n_components=2)
-    pca.fit(all_vectors)
-
     for i, cluster in enumerate(clusters):
-        points = np.array([keyed_vectors[key] for key in cluster])
-        points_2d = pca.transform(points)
+        cluster_points = np.array([points[key] for key in cluster])
         plt.scatter(
-            points_2d[:, 0],
-            points_2d[:, 1],
+            cluster_points[:, 0],
+            cluster_points[:, 1],
             s=30,
             color=colors[i % k],
             label=f"Cluster {i}",
         )
 
-    centroids_2d = pca.transform(centroids)
-    for centroid in centroids_2d:
+    for centroid in centroids:
         plt.scatter(
             centroid[0], centroid[1], s=100, color="black", marker="x", linewidths=3
         )
@@ -62,12 +54,8 @@ def plot_clusters(
     plt.show()
 
 
-def calculate_squared_diffs(vec1: np.ndarray, vec2: np.ndarray) -> float:
-    return [(vec1[i] - vec2[i]) ** 2 for i in range(len(vec1))]
-
-
-def calculate_euclidean_distance(vec1: np.ndarray, vec2: np.ndarray) -> float:
-    return np.sqrt(sum(calculate_squared_diffs(vec1, vec2)))
+def calculate_euclidean_distance(point1: np.ndarray, point2: np.ndarray) -> float:
+    return np.sqrt(np.sum((point1 - point2) ** 2))
 
 
 def is_converged(
@@ -83,13 +71,12 @@ def is_converged(
 
 
 def calculate_new_centroids(
-    k: int, keyed_vectors: KeyedVectors, clusters: list[list[int]]
+    k: int, points: np.ndarray, clusters: list[list[int]]
 ) -> np.ndarray:
-    vector_dimensions = keyed_vectors.vector_size
-    centroids = np.zeros((k, vector_dimensions))
+    centroids = np.zeros((k, 2))
 
     for i, cluster in enumerate(clusters):
-        cluster_vectors = np.array([keyed_vectors[key] for key in cluster])
+        cluster_vectors = np.array([points[key] for key in cluster])
         cluster_mean = np.mean(cluster_vectors, axis=0)
         centroids[i] = cluster_mean
 
@@ -97,13 +84,13 @@ def calculate_new_centroids(
 
 
 def create_clusters(
-    k: int, keyed_vectors: KeyedVectors, centroids: np.ndarray
+    k: int, points: np.ndarray, centroids: np.ndarray
 ) -> list[list[int]]:
     clusters = [[] for _ in range(k)]
 
-    for i, vector in enumerate(keyed_vectors.vectors):
+    for i, point in enumerate(points):
         closest_centroid = np.argmin(
-            [calculate_euclidean_distance(vector, centroid) for centroid in centroids]
+            [calculate_euclidean_distance(point, centroid) for centroid in centroids]
         )
         clusters[closest_centroid].append(i)
 
@@ -117,7 +104,7 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     )
 
     print("Initializing node2vec model...")
-    node2vec = Node2Vec(G, dimensions=128, walk_length=50, num_walks=50, workers=16)
+    node2vec = Node2Vec(G, dimensions=64, walk_length=50, num_walks=50, workers=16)
 
     print("Training node2vec model...")
     model = node2vec.fit(window=5, min_count=1, batch_words=10000)
@@ -126,6 +113,12 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
     keyed_vectors = model.wv
 
     return keyed_vectors
+
+
+def convert_vectors_to_2d(keyed_vectors: KeyedVectors):
+    vectors_array = np.array([v for v in keyed_vectors.vectors])
+    pca = PCA(n_components=2)
+    return pca.fit_transform(vectors_array)
 
 
 def get_cluster_labels(clusters, num_samples) -> np.ndarray:
@@ -143,18 +136,18 @@ def k_means(
 ) -> tuple[KeyedVectors, list[list[int]], np.ndarray]:
     print("Running K-means algorithm")
     start_time = time.time()
-    keyed_vectors = convert_nodes_to_vectors(raw_data)
+    points = convert_vectors_to_2d(convert_nodes_to_vectors(raw_data))
 
-    indices = np.random.choice(len(keyed_vectors), k, replace=False)
-    current_centroids = keyed_vectors[indices]
+    indices = np.random.choice(len(points), k, replace=False)
+    current_centroids = points[indices]
 
     iteration = 1
     while iteration <= 1000:
         print(f"Iteration #{iteration}")
-        clusters = create_clusters(k, keyed_vectors, current_centroids)
+        clusters = create_clusters(k, points, current_centroids)
 
         old_centroids = current_centroids
-        current_centroids = calculate_new_centroids(k, keyed_vectors, clusters)
+        current_centroids = calculate_new_centroids(k, points, clusters)
 
         if is_converged(k, old_centroids, current_centroids):
             break
@@ -162,17 +155,15 @@ def k_means(
         iteration += 1
 
     end_time = time.time()
+    wcss = calculate_wcss(k, points, clusters, current_centroids)
+    silhouette_avg = silhouette_score(points, get_cluster_labels(clusters, len(points)))
     print(f"Time taken: {end_time - start_time} seconds")
-    plot_clusters(k, keyed_vectors, current_centroids, clusters, iteration)
-
-    wcss = calculate_wcss(k, keyed_vectors, clusters, current_centroids)
-    silhouette_avg = silhouette_score(
-        keyed_vectors.vectors, get_cluster_labels(clusters, len(keyed_vectors))
-    )
     print(f"WCSS = {wcss}")
     print(f"Silhouette Score: {silhouette_avg}")
 
-    return wcss, silhouette_avg
+    plot_clusters(k, points, current_centroids, clusters, iteration)
+
+    return wcss
 
 
 def calculate_wcss(
@@ -206,16 +197,14 @@ def plot_optimal_k(k_range: range, values: list[list[int]], method: str):
 
 
 def find_optimal_k(data: pd.DataFrame, k_range: range):
-    wcss_values, silh_values = [], []
+    wcss_values = []
 
     for k in k_range:
         print(f"k = {k}")
-        wcss, silhouette_avg = k_means(k, data)
+        wcss = k_means(k, data)
         wcss_values.append(wcss)
-        silh_values.append(silhouette_avg)
 
     plot_optimal_k(k_range, wcss_values, "WCSS")
-    plot_optimal_k(k_range, silh_values, "Silhouette Score")
 
 
 if __name__ == "__main__":
@@ -223,10 +212,5 @@ if __name__ == "__main__":
     arxiv_small_dataset = convert_to_dataframe("./datasets/CA-GrQc.txt")
     dblp_large_dataset = convert_to_dataframe("./datasets/com-dblp.ungraph.txt")
 
-    if input("Find optimal k?\nInput (y/n): ") in ["yes", "y"]:
-        find_optimal_k(arxiv_small_dataset, range(3, 15))
-    else:
-        # k_means(5, arxiv_small_dataset)
-        # k_means(5, test_data)
-        # dblp_large_dataset
-        k_means(15, dblp_large_dataset)
+    #find_optimal_k(arxiv_small_dataset, range(3, 15))
+    k_means(7, arxiv_small_dataset)
