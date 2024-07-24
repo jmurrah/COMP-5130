@@ -2,7 +2,7 @@
 name = "COMP5130 K-Means Project"
 version = "0.1.0"
 description = ""
-authors = ["jmurrah <jacobhmurrah@gmail.com>"]
+authors = ["Jacob Murrah", "Beau Brechtel", "Luke Wittbrodt"]
 readme = "README.md"
 package-mode = false
 
