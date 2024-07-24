@@ -116,6 +116,7 @@ def convert_nodes_to_vectors(raw_data: pd.DataFrame) -> KeyedVectors:
 
 
 def convert_vectors_to_2d(keyed_vectors: KeyedVectors):
+    breakpoint()
     vectors_array = np.array([v for v in keyed_vectors.vectors])
     pca = PCA(n_components=2)
     return pca.fit_transform(vectors_array)
@@ -137,7 +138,7 @@ def k_means(
     print("Running K-means algorithm")
     start_time = time.time()
     points = convert_vectors_to_2d(convert_nodes_to_vectors(raw_data))
-
+    breakpoint()
     indices = np.random.choice(len(points), k, replace=False)
     current_centroids = points[indices]
 
@@ -155,15 +156,15 @@ def k_means(
         iteration += 1
 
     end_time = time.time()
-    print(f"Time taken: {end_time - start_time} seconds")
-    plot_clusters(k, points, current_centroids, clusters, iteration)
-
     wcss = calculate_wcss(k, points, clusters, current_centroids)
     silhouette_avg = silhouette_score(points, get_cluster_labels(clusters, len(points)))
+    print(f"Time taken: {end_time - start_time} seconds")
     print(f"WCSS = {wcss}")
     print(f"Silhouette Score: {silhouette_avg}")
 
-    return wcss, silhouette_avg
+    plot_clusters(k, points, current_centroids, clusters, iteration)
+
+    return wcss
 
 
 def calculate_wcss(
@@ -197,16 +198,14 @@ def plot_optimal_k(k_range: range, values: list[list[int]], method: str):
 
 
 def find_optimal_k(data: pd.DataFrame, k_range: range):
-    wcss_values, silh_values = [], []
+    wcss_values = []
 
     for k in k_range:
         print(f"k = {k}")
-        wcss, silhouette_avg = k_means(k, data)
+        wcss = k_means(k, data)
         wcss_values.append(wcss)
-        silh_values.append(silhouette_avg)
 
     plot_optimal_k(k_range, wcss_values, "WCSS")
-    plot_optimal_k(k_range, silh_values, "Silhouette Score")
 
 
 if __name__ == "__main__":
@@ -217,7 +216,7 @@ if __name__ == "__main__":
     if input("Find optimal k?\nInput (y/n): ") in ["yes", "y"]:
         find_optimal_k(arxiv_small_dataset, range(3, 15))
     else:
-        k_means(5, arxiv_small_dataset)
-        # k_means(5, test_data)
+        # k_means(5, arxiv_small_dataset)
+        k_means(3, arxiv_small_dataset)
         # dblp_large_dataset
-        # k_means(15, dblp_large_dataset)
+        # k_means(12, dblp_large_dataset)
