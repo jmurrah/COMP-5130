@@ -61,3 +61,6 @@ poetry install
 ```
 poetry run python3 k_means.py
 ```
+
+# Presentation
+Watch the K-Means project presentation [here](https://www.youtube.com/watch?v=Cop9CxSUmLo).
